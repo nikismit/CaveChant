@@ -169,7 +169,7 @@ MonoBehaviour:
   entrance: {x: 0, y: 6, z: 0}
   nodesAmount: 1000
   nodesLeft: 100
-  caveRadius: 10
+  caveSize: 10
   passageLength: 0.4
   timeBetweenIterations: 0.1
   attractionRange: 1.6

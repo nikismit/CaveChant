@@ -24,7 +24,7 @@ public class Generator : MonoBehaviour
     public Vector3 entrance = new Vector3(0, 6, 0);
     public int nodesAmount = 1000;
     public int nodesLeft = 100;
-    public float caveRadius = 10;
+    public float caveSize = 10;
     public float passageLength = 0.4f;
     public float timeBetweenIterations = 0.1f;
     public float attractionRange = 1.6f;
@@ -37,15 +37,11 @@ public class Generator : MonoBehaviour
     private List<Passage> passages = new List<Passage>();
     private List<Passage> extremities = new List<Passage>();
     private float timeSinceLastIteration = 0f;
-    private int startAmount;
 
     private void Start()
     {
-        // init startamount
-        startAmount = nodesAmount;
-
         // create nodes
-        GenerateNodes(nodesAmount, caveRadius / 2);
+        GenerateNodes(nodesAmount, caveSize / 2);
 
         // create cave entrance passage
         firstPassage = new Passage(entrance, entrance - new Vector3(0, passageLength, 0), new Vector3(0, -1, 0));
@@ -133,7 +129,7 @@ public class Generator : MonoBehaviour
                     for (int i = 0; i < extremities.Count; i++)
                     {
                         Passage extremity = extremities[i];
-                        bool extremityInRadius = Vector3.Distance(extremity.start, Vector3.zero) < caveRadius / 2;
+                        bool extremityInRadius = Vector3.Distance(extremity.start, Vector3.zero) < caveSize / 2;
                         bool beginning = passages.Count < 20;
 
                         if (extremityInRadius || beginning)
