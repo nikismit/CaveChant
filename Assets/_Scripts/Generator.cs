@@ -21,14 +21,14 @@ public class Passage
 
 public class Generator : MonoBehaviour 
 {
-    public Vector3 entrance = new Vector3(0, 4, 0);
-    public int nodesAmount = 300;
-    public int nodesLeft = 20;
-    public float caveRadius = 5;
+    public Vector3 entrance = new Vector3(0, 6, 0);
+    public int nodesAmount = 1000;
+    public int nodesLeft = 100;
+    public float caveRadius = 10;
     public float passageLength = 0.4f;
-    public float timeBetweenIterations = 0.2f;
-    public float attractionRange = 1;
-    public float killRange = 0.6f;
+    public float timeBetweenIterations = 0.1f;
+    public float attractionRange = 1.6f;
+    public float killRange = 1;
     public float randomGrowth = 0.1f;
 
     private List<Vector3> nodes = new List<Vector3>();
@@ -37,9 +37,13 @@ public class Generator : MonoBehaviour
     private List<Passage> passages = new List<Passage>();
     private List<Passage> extremities = new List<Passage>();
     private float timeSinceLastIteration = 0f;
+    private int startAmount;
 
     private void Start()
     {
+        // init startamount
+        startAmount = nodesAmount;
+
         // create nodes
         GenerateNodes(nodesAmount, caveRadius / 2);
 
@@ -52,7 +56,7 @@ public class Generator : MonoBehaviour
     private void Update() 
     {
         if (nodes.Count <= nodesLeft) nodes.Clear();
-        
+
         timeSinceLastIteration += Time.deltaTime;
 
         if (timeSinceLastIteration > timeBetweenIterations)
@@ -78,7 +82,7 @@ public class Generator : MonoBehaviour
 
                 for (int i = 0; i < passages.Count; i++) passages[i].attractors.Clear();
 
-                for (int ia = 0; ia < nodes.Count; ia++) 
+                for (int ia = 0; ia < nodes.Count; ia++)
                 {
                     float min = 999999f;
                     Passage closest = null;
@@ -124,18 +128,25 @@ public class Generator : MonoBehaviour
 
                     passages.AddRange(newBranches);
                 } 
-                else 
+                else
                 {
-                    for (int i = 0; i < extremities.Count; i++) 
+                    for (int i = 0; i < extremities.Count; i++)
                     {
                         Passage extremity = extremities[i];
-                        Vector3 start = extremity.end;
-                        Vector3 dir = extremity.direction + RandomGrowthVector();
-                        Vector3 end = extremity.end + dir * passageLength;
-                        Passage passage = new Passage(start, end, dir, extremity);
-                        extremity.children.Add(passage);
-                        passages.Add(passage);
-                        extremities[i] = passage;
+                        bool extremityInRadius = Vector3.Distance(extremity.start, Vector3.zero) < caveRadius / 2;
+                        bool beginning = passages.Count < 20;
+
+                        if (extremityInRadius || beginning)
+                        {
+                            Vector3 start = extremity.end;
+                            Vector3 dir = extremity.direction + RandomGrowthVector();
+                            Vector3 end = extremity.end + dir * passageLength;
+                            Passage passage = new Passage(start, end, dir, extremity);
+                            
+                            extremity.children.Add(passage);
+                            passages.Add(passage);
+                            extremities[i] = passage;
+                        }
                     }
                 }
             }
