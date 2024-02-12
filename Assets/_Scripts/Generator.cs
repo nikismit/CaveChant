@@ -21,7 +21,7 @@ public class Passage
 
 public class Generator : MonoBehaviour 
 {
-    public Vector3 entrance = new Vector3(0, -4, 0);
+    public Vector3 entrance = new Vector3(0, 4, 0);
     public int nodesAmount = 300;
     public int nodesLeft = 20;
     public float caveRadius = 5;
@@ -44,19 +44,15 @@ public class Generator : MonoBehaviour
         GenerateNodes(nodesAmount, caveRadius / 2);
 
         // create cave entrance passage
-        firstPassage = new Passage(entrance, entrance + new Vector3(0, passageLength, 0), new Vector3(0, 1, 0));
+        firstPassage = new Passage(entrance, entrance - new Vector3(0, passageLength, 0), new Vector3(0, -1, 0));
         passages.Add(firstPassage);
         extremities.Add(firstPassage);
     }
 
     private void Update() 
     {
-        if (nodes.Count <= nodesLeft)
-        {
-            extremities.Clear();
-            nodes.Clear();
-        }
-
+        if (nodes.Count <= nodesLeft) nodes.Clear();
+        
         timeSinceLastIteration += Time.deltaTime;
 
         if (timeSinceLastIteration > timeBetweenIterations)
@@ -97,7 +93,7 @@ public class Generator : MonoBehaviour
                         }
                     }
 
-                    if (closest != null) 
+                    if (closest != null)
                     {
                         closest.attractors.Add(nodes[ia]);
                         activeNodes.Add(ia);
@@ -181,15 +177,17 @@ public class Generator : MonoBehaviour
         for (int i = 0; i < passages.Count; i++)
         {
             Passage passage = passages[i];
-            Gizmos.color = Color.white;
-            Gizmos.DrawLine(passage.start, passage.end);
-        }
 
-        for (int i = 0; i < extremities.Count; i++)
-        {
-            Passage extremity = extremities[i];
-            Gizmos.color = Color.green;
-            Gizmos.DrawLine(extremity.start, extremity.end);
+            if (extremities.Contains(passage) && nodes.Count > nodesLeft) // extremities during generation
+            {
+                Gizmos.color = Color.green;
+                Gizmos.DrawLine(passage.start, passage.end);
+            }
+            else // other passages
+            {
+                Gizmos.color = Color.white;
+                Gizmos.DrawLine(passage.start, passage.end);
+            }
         }
     }
 }
