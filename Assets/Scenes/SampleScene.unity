@@ -166,13 +166,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b674ccd01ffab5048a3a82ed1c7ca74a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nbAttractors: 400
+  startPosition: {x: 0, y: -4, z: 0}
+  nbAttractors: 300
   radius: 5
-  startPosition: {x: 0, y: -3.5, z: 0}
-  branchLength: 0.2
-  timeBetweenIterations: 0.25
+  branchLength: 0.4
+  timeBetweenIterations: 0.2
   attractionRange: 1
-  killRange: 0.2
+  killRange: 0.5
   randomGrowth: 0.1
 --- !u!1 &705507993
 GameObject:

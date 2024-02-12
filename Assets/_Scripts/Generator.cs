@@ -1,41 +1,35 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
+
+public class Branch
+{
+    public Vector3 start;
+    public Vector3 end;
+    public Vector3 direction;
+    public Branch parent;
+    public List<Branch> children = new List<Branch>();
+    public List<Vector3> attractors = new List<Vector3>();
+
+    public Branch(Vector3 start, Vector3 end, Vector3 direction, Branch parent = null) 
+    {
+        this.start = start;
+        this.end = end;
+        this.direction = direction;
+        this.parent = parent;
+    }
+}
 
 public class Generator : MonoBehaviour 
 {
-
-    public class Branch 
-    {
-        public Vector3 start;
-        public Vector3 end;
-        public Vector3 direction;
-        public Branch parent;
-        public float size;
-        public float lastSize;
-        public List<Branch> children = new List<Branch>();
-        public List<Vector3> attractors = new List<Vector3>();
-        public int distanceFromRoot = 0;
-        public bool grown = false;
-
-        public Branch(Vector3 start, Vector3 end, Vector3 direction, Branch parent = null) 
-        {
-            this.start = start;
-            this.end = end;
-            this.direction = direction;
-            this.parent = parent;
-        }
-    }
-
     [Header("Generation parameters")]
-    [Range(0, 3000)] public int nbAttractors = 400;
-    [Range(0f, 10f)] public float radius = 5f;
-    public Vector3 startPosition = new Vector3(0, 0, 0);
-    [Range(0f, 0.5f)] public float branchLength = 0.2f;
-    [Range(0f, 1f)] public float timeBetweenIterations = 0.5f;
-    [Range(0f, 3f)] public float attractionRange = 0.1f;
-    [Range(0f, 2f)] public float killRange = 0.5f;
-    [Range(0f, 0.2f)] public float randomGrowth = 0.1f;
+    public Vector3 startPosition = new Vector3(0, -4, 0);
+    public int nbAttractors = 300;
+    public float radius = 5;
+    public float branchLength = 0.4f;
+    public float timeBetweenIterations = 0.2f;
+    public float attractionRange = 1;
+    public float killRange = 0.5f;
+    public float randomGrowth = 0.1f;
 
     private List<Vector3> attractors = new List<Vector3>();
     private List<int> activeAttractors = new List<int>();
@@ -44,9 +38,12 @@ public class Generator : MonoBehaviour
     private List<Branch> extremities = new List<Branch>();
     private float timeSinceLastIteration = 0f;
 
-    private void Start() 
+    private void Start()
     {
-        GenerateAttractors(nbAttractors, radius);
+        // create nodes
+        GenerateAttractors(nbAttractors, radius / 2);
+
+        // create starting point
         firstBranch = new Branch(startPosition, startPosition + new Vector3(0, branchLength, 0), new Vector3(0, 1, 0));
         branches.Add(firstBranch);
         extremities.Add(firstBranch);
@@ -56,16 +53,11 @@ public class Generator : MonoBehaviour
     {
         timeSinceLastIteration += Time.deltaTime;
 
-        if (timeSinceLastIteration > timeBetweenIterations) 
+        if (timeSinceLastIteration > timeBetweenIterations)
         {
             timeSinceLastIteration = 0f;
 
-            for (int i = 0; i < extremities.Count; i++) 
-            {
-                extremities[i].grown = true;
-            }
-
-            for (int i = attractors.Count - 1; i >= 0; i--) 
+            for (int i = attractors.Count - 1; i >= 0; i--)
             {
                 for (int j = 0; j < branches.Count; j++) 
                 {
@@ -78,13 +70,11 @@ public class Generator : MonoBehaviour
                 }
             }
 
-            if (attractors.Count > 0) 
+            if (attractors.Count > 0)
             {
                 activeAttractors.Clear();
-                for (int i = 0; i < branches.Count; i++) 
-                {
-                    branches[i].attractors.Clear();
-                }
+
+                for (int i = 0; i < branches.Count; i++) branches[i].attractors.Clear();
 
                 for (int ia = 0; ia < attractors.Count; ia++) 
                 {
@@ -118,29 +108,16 @@ public class Generator : MonoBehaviour
                         if (branches[i].attractors.Count > 0) 
                         {
                             Vector3 dir = new Vector3(0, 0, 0);
-
-                            for (int j = 0; j < branches[i].attractors.Count; j++) 
-                            {
-                                dir += (branches[i].attractors[j] - branches[i].end).normalized;
-                            }
-
+                            for (int j = 0; j < branches[i].attractors.Count; j++) dir += (branches[i].attractors[j] - branches[i].end).normalized;
                             dir /= branches[i].attractors.Count;
                             dir += RandomGrowthVector();
                             dir.Normalize();
-
                             Branch nb = new Branch(branches[i].end, branches[i].end + dir * branchLength, dir, branches[i]);
-                            nb.distanceFromRoot = branches[i].distanceFromRoot + 1;
                             branches[i].children.Add(nb);
                             newBranches.Add(nb);
                             extremities.Add(nb);
                         } 
-                        else 
-                        {
-                            if (branches[i].children.Count == 0) 
-                            {
-                                extremities.Add(branches[i]);
-                            }
-                        }
+                        else if (branches[i].children.Count == 0) extremities.Add(branches[i]);
                     }
 
                     branches.AddRange(newBranches);
@@ -163,15 +140,11 @@ public class Generator : MonoBehaviour
         }
     }
 
-    private Vector3 RandomGrowthVector() 
+    private Vector3 RandomGrowthVector()
     {
         float alpha = Random.Range(0f, Mathf.PI);
         float theta = Random.Range(0f, Mathf.PI * 2f);
-        Vector3 pt = new Vector3(
-            Mathf.Cos(theta) * Mathf.Sin(alpha),
-            Mathf.Sin(theta) * Mathf.Sin(alpha),
-            Mathf.Cos(alpha)
-        );
+        Vector3 pt = new Vector3(Mathf.Cos(theta) * Mathf.Sin(alpha), Mathf.Sin(theta) * Mathf.Sin(alpha), Mathf.Cos(alpha));
         return pt * randomGrowth;
     }
 
@@ -184,11 +157,7 @@ public class Generator : MonoBehaviour
             radius *= r;
             float alpha = Random.Range(0f, Mathf.PI);
             float theta = Random.Range(0f, Mathf.PI * 2f);
-            Vector3 pt = new Vector3(
-                radius * Mathf.Cos(theta) * Mathf.Sin(alpha),
-                radius * Mathf.Sin(theta) * Mathf.Sin(alpha),
-                radius * Mathf.Cos(alpha)
-            );
+            Vector3 pt = new Vector3(radius * Mathf.Cos(theta) * Mathf.Sin(alpha), radius * Mathf.Sin(theta) * Mathf.Sin(alpha), radius * Mathf.Cos(alpha));
             pt += transform.position;
             attractors.Add(pt);
         }
