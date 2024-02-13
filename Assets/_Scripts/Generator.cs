@@ -3,13 +3,14 @@ using UnityEngine;
 
 public class Passage
 {
+    public int verticesid;
     public Vector3 start;
     public Vector3 end;
     public Vector3 direction;
     public Passage parent;
     public List<Passage> children = new List<Passage>();
     public List<Vector3> attractors = new List<Vector3>();
-
+    
     public Passage(Vector3 start, Vector3 end, Vector3 direction, Passage parent = null) 
     {
         this.start = start;
@@ -38,6 +39,75 @@ public class Generator : MonoBehaviour
     private List<Passage> extremities = new List<Passage>();
     private float timeSinceLastIteration = 0f;
 
+    private void GenerateMesh()
+    {
+        int subdivisions = 6;
+        float width = 0.05f;
+
+        Mesh mesh = new Mesh();
+
+        Vector3[] vertices = new Vector3[(passages.Count + 1) * subdivisions];
+        int[] triangles = new int[passages.Count * subdivisions * 6];
+
+        // Construct vertices
+        for (int i = 0; i < passages.Count; i++)
+        {
+            Passage passage = passages[i];
+            int id = subdivisions * i;
+            passage.verticesid = id;
+            Quaternion quaternion = Quaternion.FromToRotation(Vector3.up, passage.direction);
+
+            for (int j = 0; j < subdivisions; j++)
+            {
+                float alpha = ((float)j / subdivisions) * Mathf.PI * 2f;
+                Vector3 pos = new Vector3(Mathf.Cos(alpha) * width, 0, Mathf.Sin(alpha) * width);
+                pos = quaternion * pos;
+                pos += passage.end;
+                vertices[id + j] = pos - transform.position;
+
+                if (passage.parent == null)
+                    vertices[passages.Count * subdivisions + j] = passage.start + new Vector3(Mathf.Cos(alpha) * width, 0, Mathf.Sin(alpha) * width) - transform.position;
+            }
+        }
+
+        // Construct faces
+        for (int i = 0; i < passages.Count; i++)
+        {
+            Passage b = passages[i];
+            int fid = i * subdivisions * 2 * 3;
+            int bId = b.parent != null ? b.parent.verticesid : passages.Count * subdivisions;
+            int tId = b.verticesid;
+
+            for (int j = 0; j < subdivisions; j++)
+            {
+                triangles[fid + j * 6] = bId + j;
+                triangles[fid + j * 6 + 1] = tId + j;
+
+                if (j == subdivisions - 1) triangles[fid + j * 6 + 2] = tId;
+                else triangles[fid + j * 6 + 2] = tId + j + 1;
+
+                if (j == subdivisions - 1)
+                {
+                    triangles[fid + j * 6 + 3] = bId + j;
+                    triangles[fid + j * 6 + 4] = tId;
+                    triangles[fid + j * 6 + 5] = bId;
+                }
+                else
+                {
+                    triangles[fid + j * 6 + 3] = bId + j;
+                    triangles[fid + j * 6 + 4] = tId + j + 1;
+                    triangles[fid + j * 6 + 5] = bId + j + 1;
+                }
+            }
+        }
+
+        mesh.vertices = vertices;
+        mesh.triangles = triangles;
+        mesh.RecalculateNormals();
+        gameObject.AddComponent<MeshFilter>().mesh = mesh;
+        gameObject.AddComponent<MeshRenderer>().material = new Material(Shader.Find("Standard"));
+    }
+    
     private void Start()
     {
         // create nodes
@@ -52,6 +122,7 @@ public class Generator : MonoBehaviour
     private void Update() 
     {
         if (nodes.Count <= nodesLeft) nodes.Clear();
+        if (nodes.Count == 0 && gameObject.GetComponent<MeshRenderer>() == null) GenerateMesh();
 
         timeSinceLastIteration += Time.deltaTime;
 
@@ -105,9 +176,9 @@ public class Generator : MonoBehaviour
                     extremities.Clear();
                     List<Passage> newBranches = new List<Passage>();
 
-                    for (int i = 0; i < passages.Count; i++) 
+                    for (int i = 0; i < passages.Count; i++)
                     {
-                        if (passages[i].attractors.Count > 0) 
+                        if (passages[i].attractors.Count > 0)
                         {
                             Vector3 dir = new Vector3(0, 0, 0);
                             for (int j = 0; j < passages[i].attractors.Count; j++) dir += (passages[i].attractors[j] - passages[i].end).normalized;
