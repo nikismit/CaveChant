@@ -13,7 +13,7 @@ public class Passage
     public List<Passage> children = new List<Passage>();
     public List<Vector3> attractors = new List<Vector3>();
     
-    public Passage(Vector3 start, Vector3 end, Vector3 direction, Passage parent = null) 
+    public Passage(Vector3 start, Vector3 end, Vector3 direction, Passage parent = null)
     {
         this.start = start;
         this.end = end;
@@ -47,6 +47,42 @@ public class Generator : MonoBehaviour
     private List<Passage> passages = new List<Passage>();
     private List<Passage> extremities = new List<Passage>();
     private float timeSinceLastIteration = 0f;
+
+    private int test = 0;
+
+    void ColorTest()
+    {
+        if (gameObject.GetComponent<MeshFilter>() == null || test >= passages.Count) return;
+        UpdatePassageColor(true, passages[test]);
+        test++;
+    }
+
+    private void Start()
+    {
+        // create nodes
+        GenerateNodes(nodesAmount, caveSize / 2);
+
+        // create cave entrance passage
+        firstPassage = new Passage(entrance, entrance - new Vector3(0, passageLength, 0), new Vector3(0, -1, 0));
+        passages.Add(firstPassage);
+        extremities.Add(firstPassage);
+
+        //test
+        InvokeRepeating("ColorTest", 0.0f, 0.04f);
+    }
+
+    public void UpdatePassageColor(bool lit, Passage passage)
+    {
+        passage.lit = lit;
+        Mesh mesh = gameObject.GetComponent<MeshFilter>().mesh;
+        Color[] colors = mesh.colors;
+        int half = (passages.Count + 1) * subdivisions;
+
+        for (int i = passage.verticesid; i < passage.verticesid + subdivisions; i++) colors[i] = passage.lit ? Color.yellow : Color.white;
+        for (int i = passage.verticesid; i < passage.verticesid + subdivisions; i++) colors[i + half] = passage.lit ? Color.yellow : Color.white;
+
+        mesh.colors = colors;
+    }
 
     private void GenerateMesh()
     {
@@ -93,6 +129,8 @@ public class Generator : MonoBehaviour
 
             if (passage.parent != null && CheckAngleDifference(passage.direction, passage.parent.direction, 45)) startVertexID = passage.verticesid + half;
 
+            if (passage.parent == null) startVertexID = passage.verticesid + half;
+
             for (int j = 0; j < subdivisions; j++)
             {
                 // start of triangles
@@ -116,22 +154,24 @@ public class Generator : MonoBehaviour
             }
         }
 
+        // Initialize colors array
+        Color[] colors = new Color[vertices.Length];
+        for (int i = 0; i < passages.Count; i++)
+        {
+            Passage passage = passages[i];
+            Color color = passage.lit ? Color.yellow : Color.white;
+            int half = (passages.Count + 1) * subdivisions;
+
+            for (int j = 0; j < subdivisions; j++) colors[passage.verticesid + j] = color;
+            for (int j = 0; j < subdivisions; j++) colors[passage.verticesid + half + j] = color;
+        }
+
         mesh.vertices = vertices;
         mesh.triangles = triangles;
+        mesh.colors = colors;
         mesh.RecalculateNormals();
         gameObject.AddComponent<MeshFilter>().mesh = mesh;
         gameObject.AddComponent<MeshRenderer>().material = caveMaterial;
-    }
-
-    private void Start()
-    {
-        // create nodes
-        GenerateNodes(nodesAmount, caveSize / 2);
-
-        // create cave entrance passage
-        firstPassage = new Passage(entrance, entrance - new Vector3(0, passageLength, 0), new Vector3(0, -1, 0));
-        passages.Add(firstPassage);
-        extremities.Add(firstPassage);
     }
 
     private void Update()
@@ -140,11 +180,7 @@ public class Generator : MonoBehaviour
         if (nodes.Count == 0 && gameObject.GetComponent<MeshRenderer>() == null)
         {
             GenerateMesh();
-            for (int i = 0; i < passages.Count; i++)
-            {
-                passages[i].id = i;
-                Debug.Log(i.ToString());
-            }
+            for (int i = 0; i < passages.Count; i++) passages[i].id = i;
         }
         
         // cleanup leftover nodes
