@@ -39,16 +39,6 @@ public class Generator : MonoBehaviour
     private List<Passage> extremities = new List<Passage>();
     private float timeSinceLastIteration = 0f;
 
-    static bool CheckAngleDifference(Vector3 vector1, Vector3 vector2, float thresholdDegrees)
-    {
-        vector1 = Vector3.Normalize(vector1);
-        vector2 = Vector3.Normalize(vector2);
-        float dotProduct = Vector3.Dot(vector1, vector2);
-        float angle = Mathf.Acos(dotProduct);
-        float angleDegrees = angle * Mathf.Rad2Deg;
-        return angleDegrees > thresholdDegrees;
-    }
-
     private void GenerateMesh()
     {
         int subdivisions = 6;
@@ -65,21 +55,21 @@ public class Generator : MonoBehaviour
             Passage passage = passages[i];
             int id = subdivisions * i;
             passage.verticesid = id;
-            Quaternion quaternion = Quaternion.FromToRotation(Vector3.up, passage.direction);
 
             for (int j = 0; j < subdivisions; j++)
             {
-                float alpha = ((float)j / subdivisions) * Mathf.PI * 2f;
-                Vector3 firstPosition = new Vector3(Mathf.Cos(alpha) * width, 0, Mathf.Sin(alpha) * width);
-                firstPosition = quaternion * firstPosition;
-                firstPosition += passage.end;
-                Vector3 diff = passage.end - passage.start;
-                Vector3 secondPosition = firstPosition - diff;
-                int half = (passages.Count + 1) * subdivisions;
+                float alpha = (float)j / subdivisions * Mathf.PI * 2f;
+                Quaternion orientationRing = Quaternion.FromToRotation(Vector3.up, passage.direction);
+                Vector3 aroundRing = new Vector3(Mathf.Cos(alpha) * width, 0, Mathf.Sin(alpha) * width);
+                Vector3 offset = orientationRing * aroundRing;
+
+                Vector3 firstRingVertex = passage.end + offset;
+                Vector3 secondRingVertex = passage.start + offset;
 
                 // set vertices
-                vertices[id + j] = firstPosition - transform.position;
-                vertices[id + j + half] = secondPosition - transform.position;
+                int half = (passages.Count + 1) * subdivisions;
+                vertices[id + j] = firstRingVertex - transform.position;
+                vertices[id + j + half] = secondRingVertex - transform.position;
 
                 // first passage vertices
                 if (passage.parent == null) vertices[passages.Count * subdivisions + j] = passage.start + new Vector3(Mathf.Cos(alpha) * width, 0, Mathf.Sin(alpha) * width) - transform.position;
@@ -90,36 +80,36 @@ public class Generator : MonoBehaviour
         for (int i = 0; i < passages.Count; i++)
         {
             Passage passage = passages[i];
-            int TID = i * subdivisions * 2 * 3;
-            int startVID = passage.parent != null ? passage.parent.verticesid : passages.Count * subdivisions;
-            int endVID = passage.verticesid;
+            int half = (passages.Count + 1) * subdivisions;
+            int triangleID = i * subdivisions * 2 * 3;
+            int startVertexID = passage.parent != null ? passage.parent.verticesid : passages.Count * subdivisions;
+            int endVertexID = passage.verticesid;
 
             // if forking passage then use extra vertices
             if (passage.parent != null && CheckAngleDifference(passage.direction, passage.parent.direction, 50))
             {
-                int half = (passages.Count + 1) * subdivisions;
-                startVID = endVID + half;
+                startVertexID = passage.verticesid + half;
             }
 
             for (int j = 0; j < subdivisions; j++)
             {
                 // start of triangles
-                triangles[TID + j * 6] = startVID + j;
-                triangles[TID + j * 6 + 1] = endVID + j;
+                triangles[triangleID + j * 6] = startVertexID + j;
+                triangles[triangleID + j * 6 + 1] = endVertexID + j;
 
                 if (j == subdivisions - 1) // last triangles
                 {
-                    triangles[TID + j * 6 + 2] = endVID;
-                    triangles[TID + j * 6 + 3] = startVID + j;
-                    triangles[TID + j * 6 + 4] = endVID;
-                    triangles[TID + j * 6 + 5] = startVID;
+                    triangles[triangleID + j * 6 + 2] = endVertexID;
+                    triangles[triangleID + j * 6 + 3] = startVertexID + j;
+                    triangles[triangleID + j * 6 + 4] = endVertexID;
+                    triangles[triangleID + j * 6 + 5] = startVertexID;
                 }
                 else // other triangles
                 {
-                    triangles[TID + j * 6 + 2] = endVID + j + 1;
-                    triangles[TID + j * 6 + 3] = startVID + j;
-                    triangles[TID + j * 6 + 4] = endVID + j + 1;
-                    triangles[TID + j * 6 + 5] = startVID + j + 1;
+                    triangles[triangleID + j * 6 + 2] = endVertexID + j + 1;
+                    triangles[triangleID + j * 6 + 3] = startVertexID + j;
+                    triangles[triangleID + j * 6 + 4] = endVertexID + j + 1;
+                    triangles[triangleID + j * 6 + 5] = startVertexID + j + 1;
                 }
             }
         }
@@ -264,6 +254,16 @@ public class Generator : MonoBehaviour
             pt += transform.position;
             nodes.Add(pt);
         }
+    }
+
+    static bool CheckAngleDifference(Vector3 vector1, Vector3 vector2, float thresholdDegrees)
+    {
+        vector1 = Vector3.Normalize(vector1);
+        vector2 = Vector3.Normalize(vector2);
+        float dotProduct = Vector3.Dot(vector1, vector2);
+        float angle = Mathf.Acos(dotProduct);
+        float angleDegrees = angle * Mathf.Rad2Deg;
+        return angleDegrees > thresholdDegrees;
     }
 
     private void OnDrawGizmos() 
