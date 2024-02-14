@@ -22,6 +22,12 @@ public class Passage
 
 public class Generator : MonoBehaviour 
 {
+    [Header("Mesh Generation Settings")]
+    public Material caveMaterial;
+    public float passageWidth = 0.05f;
+    public int subdivisions = 6;
+
+    [Header("Space Colonization Settings")]
     public Vector3 entrance = new Vector3(0, 6, 0);
     public int nodesAmount = 1000;
     public int nodesLeft = 100;
@@ -41,11 +47,7 @@ public class Generator : MonoBehaviour
 
     private void GenerateMesh()
     {
-        int subdivisions = 6;
-        float width = 0.05f;
-
         Mesh mesh = new Mesh();
-
         Vector3[] vertices = new Vector3[(passages.Count + 1) * subdivisions * 2];
         int[] triangles = new int[passages.Count * subdivisions * 6];
 
@@ -60,7 +62,7 @@ public class Generator : MonoBehaviour
             {
                 float alpha = (float)j / subdivisions * Mathf.PI * 2f;
                 Quaternion orientationRing = Quaternion.FromToRotation(Vector3.up, passage.direction);
-                Vector3 aroundRing = new Vector3(Mathf.Cos(alpha) * width, 0, Mathf.Sin(alpha) * width);
+                Vector3 aroundRing = new Vector3(Mathf.Cos(alpha) * passageWidth, 0, Mathf.Sin(alpha) * passageWidth);
                 Vector3 offset = orientationRing * aroundRing;
 
                 Vector3 firstRingVertex = passage.end + offset;
@@ -72,7 +74,7 @@ public class Generator : MonoBehaviour
                 vertices[id + j + half] = secondRingVertex - transform.position;
 
                 // first passage vertices
-                if (passage.parent == null) vertices[passages.Count * subdivisions + j] = passage.start + new Vector3(Mathf.Cos(alpha) * width, 0, Mathf.Sin(alpha) * width) - transform.position;
+                if (passage.parent == null) vertices[passages.Count * subdivisions + j] = passage.start + new Vector3(Mathf.Cos(alpha) * passageWidth, 0, Mathf.Sin(alpha) * passageWidth) - transform.position;
             }
         }
 
@@ -82,14 +84,11 @@ public class Generator : MonoBehaviour
             Passage passage = passages[i];
             int half = (passages.Count + 1) * subdivisions;
             int triangleID = i * subdivisions * 2 * 3;
+
             int startVertexID = passage.parent != null ? passage.parent.verticesid : passages.Count * subdivisions;
             int endVertexID = passage.verticesid;
 
-            // if forking passage then use extra vertices
-            if (passage.parent != null && CheckAngleDifference(passage.direction, passage.parent.direction, 50))
-            {
-                startVertexID = passage.verticesid + half;
-            }
+            if (passage.parent != null && CheckAngleDifference(passage.direction, passage.parent.direction, 45)) startVertexID = passage.verticesid + half;
 
             for (int j = 0; j < subdivisions; j++)
             {
@@ -118,7 +117,7 @@ public class Generator : MonoBehaviour
         mesh.triangles = triangles;
         mesh.RecalculateNormals();
         gameObject.AddComponent<MeshFilter>().mesh = mesh;
-        gameObject.AddComponent<MeshRenderer>().material = new Material(Shader.Find("Standard"));
+        gameObject.AddComponent<MeshRenderer>().material = caveMaterial;
     }
     
     private void Start()
