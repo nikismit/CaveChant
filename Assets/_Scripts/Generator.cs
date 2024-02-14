@@ -39,6 +39,16 @@ public class Generator : MonoBehaviour
     private List<Passage> extremities = new List<Passage>();
     private float timeSinceLastIteration = 0f;
 
+    static bool CheckAngleDifference(Vector3 vector1, Vector3 vector2, float thresholdDegrees)
+    {
+        vector1 = Vector3.Normalize(vector1);
+        vector2 = Vector3.Normalize(vector2);
+        float dotProduct = Vector3.Dot(vector1, vector2);
+        float angle = Mathf.Acos(dotProduct);
+        float angleDegrees = angle * Mathf.Rad2Deg;
+        return angleDegrees > thresholdDegrees;
+    }
+
     private void GenerateMesh()
     {
         int subdivisions = 6;
@@ -46,7 +56,7 @@ public class Generator : MonoBehaviour
 
         Mesh mesh = new Mesh();
 
-        Vector3[] vertices = new Vector3[(passages.Count + 1) * subdivisions];
+        Vector3[] vertices = new Vector3[(passages.Count + 1) * subdivisions * 2];
         int[] triangles = new int[passages.Count * subdivisions * 6];
 
         // Construct vertices
@@ -60,43 +70,56 @@ public class Generator : MonoBehaviour
             for (int j = 0; j < subdivisions; j++)
             {
                 float alpha = ((float)j / subdivisions) * Mathf.PI * 2f;
-                Vector3 pos = new Vector3(Mathf.Cos(alpha) * width, 0, Mathf.Sin(alpha) * width);
-                pos = quaternion * pos;
-                pos += passage.end;
-                vertices[id + j] = pos - transform.position;
+                Vector3 firstPosition = new Vector3(Mathf.Cos(alpha) * width, 0, Mathf.Sin(alpha) * width);
+                firstPosition = quaternion * firstPosition;
+                firstPosition += passage.end;
+                Vector3 diff = passage.end - passage.start;
+                Vector3 secondPosition = firstPosition - diff;
+                int half = (passages.Count + 1) * subdivisions;
 
-                if (passage.parent == null)
-                    vertices[passages.Count * subdivisions + j] = passage.start + new Vector3(Mathf.Cos(alpha) * width, 0, Mathf.Sin(alpha) * width) - transform.position;
+                // set vertices
+                vertices[id + j] = firstPosition - transform.position;
+                vertices[id + j + half] = secondPosition - transform.position;
+
+                // first passage vertices
+                if (passage.parent == null) vertices[passages.Count * subdivisions + j] = passage.start + new Vector3(Mathf.Cos(alpha) * width, 0, Mathf.Sin(alpha) * width) - transform.position;
             }
         }
 
         // Construct faces
         for (int i = 0; i < passages.Count; i++)
         {
-            Passage b = passages[i];
-            int fid = i * subdivisions * 2 * 3;
-            int bId = b.parent != null ? b.parent.verticesid : passages.Count * subdivisions;
-            int tId = b.verticesid;
+            Passage passage = passages[i];
+            int TID = i * subdivisions * 2 * 3;
+            int startVID = passage.parent != null ? passage.parent.verticesid : passages.Count * subdivisions;
+            int endVID = passage.verticesid;
+
+            // if forking passage then use extra vertices
+            if (passage.parent != null && CheckAngleDifference(passage.direction, passage.parent.direction, 50))
+            {
+                int half = (passages.Count + 1) * subdivisions;
+                startVID = endVID + half;
+            }
 
             for (int j = 0; j < subdivisions; j++)
             {
-                triangles[fid + j * 6] = bId + j;
-                triangles[fid + j * 6 + 1] = tId + j;
+                // start of triangles
+                triangles[TID + j * 6] = startVID + j;
+                triangles[TID + j * 6 + 1] = endVID + j;
 
-                if (j == subdivisions - 1) triangles[fid + j * 6 + 2] = tId;
-                else triangles[fid + j * 6 + 2] = tId + j + 1;
-
-                if (j == subdivisions - 1)
+                if (j == subdivisions - 1) // last triangles
                 {
-                    triangles[fid + j * 6 + 3] = bId + j;
-                    triangles[fid + j * 6 + 4] = tId;
-                    triangles[fid + j * 6 + 5] = bId;
+                    triangles[TID + j * 6 + 2] = endVID;
+                    triangles[TID + j * 6 + 3] = startVID + j;
+                    triangles[TID + j * 6 + 4] = endVID;
+                    triangles[TID + j * 6 + 5] = startVID;
                 }
-                else
+                else // other triangles
                 {
-                    triangles[fid + j * 6 + 3] = bId + j;
-                    triangles[fid + j * 6 + 4] = tId + j + 1;
-                    triangles[fid + j * 6 + 5] = bId + j + 1;
+                    triangles[TID + j * 6 + 2] = endVID + j + 1;
+                    triangles[TID + j * 6 + 3] = startVID + j;
+                    triangles[TID + j * 6 + 4] = endVID + j + 1;
+                    triangles[TID + j * 6 + 5] = startVID + j + 1;
                 }
             }
         }
@@ -228,7 +251,7 @@ public class Generator : MonoBehaviour
         return pt * randomGrowth;
     }
 
-    private void GenerateNodes(int n, float r) 
+    private void GenerateNodes(int n, float r)
     {
         for (int i = 0; i < n; i++)
         {
