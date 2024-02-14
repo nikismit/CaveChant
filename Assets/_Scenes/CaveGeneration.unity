@@ -236,14 +236,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   caveMaterial: {fileID: 2100000, guid: 9b15cf295582ad547ab40495f6cfd956, type: 2}
-  passageWidth: 0.05
+  passageWidth: 0.01
   subdivisions: 6
   entrance: {x: 0, y: -6, z: 0}
-  nodesAmount: 1000
+  nodesAmount: 2000
   nodesLeft: 100
   caveSize: 10
-  passageLength: 0.4
-  timeBetweenIterations: 0.1
+  passageLength: 0.1
+  timeBetweenIterations: 0.01
   attractionRange: 1.6
   killRange: 1
   randomGrowth: 0.1
