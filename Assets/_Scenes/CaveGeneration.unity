@@ -239,14 +239,14 @@ MonoBehaviour:
   passageWidth: 0.01
   subdivisions: 6
   entrance: {x: 0, y: -6, z: 0}
-  nodesAmount: 2000
+  nodesAmount: 1000
   nodesLeft: 100
   caveSize: 10
   passageLength: 0.1
-  timeBetweenIterations: 0.01
-  attractionRange: 1.6
-  killRange: 1
-  randomGrowth: 0.1
+  timeBetweenIterations: 0.001
+  attractionRange: 1.2
+  killRange: 0.4
+  randomGrowth: 0.4
 --- !u!4 &1366762762
 Transform:
   m_ObjectHideFlags: 0

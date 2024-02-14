@@ -68,7 +68,7 @@ public class Generator : MonoBehaviour
         extremities.Add(firstPassage);
 
         //test
-        InvokeRepeating("ColorTest", 0.0f, 0.04f);
+        InvokeRepeating("ColorTest", 0.0f, 0.004f);
     }
 
     public void UpdatePassageColor(bool lit, Passage passage)
