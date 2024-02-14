@@ -53,7 +53,7 @@ public class Generator : MonoBehaviour
     void ColorTest()
     {
         if (gameObject.GetComponent<MeshFilter>() == null || test >= passages.Count) return;
-        UpdatePassageColor(true, passages[test]);
+        UpdatePassageColor(true, passages[passages.Count - 1 - test]);
         test++;
     }
 
@@ -78,8 +78,8 @@ public class Generator : MonoBehaviour
         Color[] colors = mesh.colors;
         int half = (passages.Count + 1) * subdivisions;
 
-        for (int i = passage.verticesid; i < passage.verticesid + subdivisions; i++) colors[i] = passage.lit ? Color.yellow : Color.white;
-        for (int i = passage.verticesid; i < passage.verticesid + subdivisions; i++) colors[i + half] = passage.lit ? Color.yellow : Color.white;
+        for (int i = passage.verticesid; i < passage.verticesid + subdivisions; i++) colors[i] = passage.lit ? Color.yellow : Color.black;
+        for (int i = passage.verticesid; i < passage.verticesid + subdivisions; i++) colors[i + half] = passage.lit ? Color.yellow : Color.black;
 
         mesh.colors = colors;
     }
@@ -159,7 +159,7 @@ public class Generator : MonoBehaviour
         for (int i = 0; i < passages.Count; i++)
         {
             Passage passage = passages[i];
-            Color color = passage.lit ? Color.yellow : Color.white;
+            Color color = passage.lit ? Color.yellow : Color.black;
             int half = (passages.Count + 1) * subdivisions;
 
             for (int j = 0; j < subdivisions; j++) colors[passage.verticesid + j] = color;

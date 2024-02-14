@@ -236,7 +236,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   caveMaterial: {fileID: 2100000, guid: 9b15cf295582ad547ab40495f6cfd956, type: 2}
-  passageWidth: 0.1
+  passageWidth: 0.04
   subdivisions: 6
   entrance: {x: 0, y: 6, z: 0}
   nodesAmount: 1000
