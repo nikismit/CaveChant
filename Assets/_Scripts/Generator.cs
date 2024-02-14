@@ -31,7 +31,7 @@ public class Generator : MonoBehaviour
     public int subdivisions = 6;
 
     [Header("Space Colonization Settings")]
-    public Vector3 entrance = new Vector3(0, 6, 0);
+    public Vector3 entrance = new Vector3(0, -6, 0);
     public int nodesAmount = 1000;
     public int nodesLeft = 100;
     public float caveSize = 10;
@@ -63,7 +63,7 @@ public class Generator : MonoBehaviour
         GenerateNodes(nodesAmount, caveSize / 2);
 
         // create cave entrance passage
-        firstPassage = new Passage(entrance, entrance - new Vector3(0, passageLength, 0), new Vector3(0, -1, 0));
+        firstPassage = new Passage(entrance, entrance + new Vector3(0, passageLength, 0), new Vector3(0, 1, 0));
         passages.Add(firstPassage);
         extremities.Add(firstPassage);
 
