@@ -103,9 +103,10 @@ public class Generator : MonoBehaviour
                 Quaternion orientationRing = Quaternion.FromToRotation(Vector3.up, passage.direction);
                 Vector3 aroundRing = new Vector3(Mathf.Cos(alpha) * passageWidth, 0, Mathf.Sin(alpha) * passageWidth);
                 Vector3 offset = orientationRing * aroundRing;
-
-                Vector3 firstRingVertex = passage.end + offset;
-                Vector3 secondRingVertex = passage.start + offset;
+                Vector3 extra = passage.direction * passageWidth / 4;
+                
+                Vector3 firstRingVertex = passage.end + extra + offset;
+                Vector3 secondRingVertex = passage.start - extra + offset;
 
                 // set vertices
                 int half = (passages.Count + 1) * subdivisions;
@@ -124,12 +125,8 @@ public class Generator : MonoBehaviour
             int half = (passages.Count + 1) * subdivisions;
             int triangleID = i * subdivisions * 2 * 3;
 
-            int startVertexID = passage.parent != null ? passage.parent.verticesid : passages.Count * subdivisions;
+            int startVertexID = passage.verticesid + half;
             int endVertexID = passage.verticesid;
-
-            if (passage.parent != null && CheckAngleDifference(passage.direction, passage.parent.direction, 45)) startVertexID = passage.verticesid + half;
-
-            if (passage.parent == null) startVertexID = passage.verticesid + half;
 
             for (int j = 0; j < subdivisions; j++)
             {
