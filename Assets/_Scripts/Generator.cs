@@ -3,6 +3,8 @@ using UnityEngine;
 
 public class Passage
 {
+    public bool lit;
+    public int id;
     public int verticesid;
     public Vector3 start;
     public Vector3 end;
@@ -17,10 +19,11 @@ public class Passage
         this.end = end;
         this.direction = direction;
         this.parent = parent;
+        lit = false;
     }
 }
 
-public class Generator : MonoBehaviour 
+public class Generator : MonoBehaviour
 {
     [Header("Mesh Generation Settings")]
     public Material caveMaterial;
@@ -119,7 +122,7 @@ public class Generator : MonoBehaviour
         gameObject.AddComponent<MeshFilter>().mesh = mesh;
         gameObject.AddComponent<MeshRenderer>().material = caveMaterial;
     }
-    
+
     private void Start()
     {
         // create nodes
@@ -131,10 +134,21 @@ public class Generator : MonoBehaviour
         extremities.Add(firstPassage);
     }
 
-    private void Update() 
+    private void Update()
     {
+        // run once at the end
+        if (nodes.Count == 0 && gameObject.GetComponent<MeshRenderer>() == null)
+        {
+            GenerateMesh();
+            for (int i = 0; i < passages.Count; i++)
+            {
+                passages[i].id = i;
+                Debug.Log(i.ToString());
+            }
+        }
+        
+        // cleanup leftover nodes
         if (nodes.Count <= nodesLeft) nodes.Clear();
-        if (nodes.Count == 0 && gameObject.GetComponent<MeshRenderer>() == null) GenerateMesh();
 
         timeSinceLastIteration += Time.deltaTime;
 
