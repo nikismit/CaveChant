@@ -349,7 +349,7 @@ MonoBehaviour:
   passageWidth: 0.01
   subdivisions: 6
   entrance: {x: 0, y: -6, z: 0}
-  nodesAmount: 1000
+  initialNodeAmount: 1000
   nodesLeft: 100
   caveSize: 10
   passageLength: 0.1

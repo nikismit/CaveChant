@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 public class Passage
@@ -33,7 +32,7 @@ public class Generator : MonoBehaviour
 
     [Header("Space Colonization Settings")]
     public Vector3 entrance = new Vector3(0, -6, 0);
-    public int nodesAmount = 1000;
+    public int initialNodeAmount = 1000;
     public int nodesLeft = 100;
     public float caveSize = 10;
     public float passageLength = 0.1f;
@@ -52,7 +51,7 @@ public class Generator : MonoBehaviour
     private void Start()
     {
         // create nodes
-        GenerateNodes(nodesAmount, caveSize / 2);
+        GenerateNodes(initialNodeAmount, caveSize / 2);
 
         // create entrance
         firstPassage = new Passage(entrance, entrance + new Vector3(0, passageLength, 0), new Vector3(0, 1, 0));
@@ -91,60 +90,54 @@ public class Generator : MonoBehaviour
 
     private void IterateSpaceColonization()
     {
-        // cleanup leftover nodes
-        if (nodes.Count > 0 && nodes.Count <= nodesLeft)
-        {
-            nodes.Clear();
-            nodesAmount = nodes.Count;
-        }
-
-        // return if there are no nodes
+        // cleanup leftover nodes and return
+        if (nodes.Count > 0 && nodes.Count <= nodesLeft) nodes.Clear();
         if (nodes.Count == 0) return;
 
-        // cleanup
-        for (int i = nodes.Count - 1; i >= 0; i--)
+        // remove nodes in killrange
+        List<Vector3> toRemove = new List<Vector3>();
+        for (int i = 0; i < nodes.Count; i++)
         {
             for (int j = 0; j < passages.Count; j++)
             {
-                if (Vector3.Distance(passages[j].end, nodes[i]) < killRange)
-                {
-                    nodes.Remove(nodes[i]);
-                    nodesAmount--;
-                    break;
-                }
+                float distance = Vector3.Distance(nodes[i], passages[j].end);
+                if (distance < killRange) toRemove.Add(nodes[i]);
             }
         }
-        activeNodes.Clear();
-        for (int i = 0; i < passages.Count; i++) passages[i].attractors.Clear();
+        foreach (var node in toRemove) nodes.Remove(node);
 
-        // calculate active nodes
-        for (int ia = 0; ia < nodes.Count; ia++)
+        // reset attractors and active nodes
+        for (int i = 0; i < passages.Count; i++) passages[i].attractors.Clear();
+        activeNodes.Clear();
+
+        // calculate active nodes and attractors
+        for (int i = 0; i < nodes.Count; i++)
         {
-            float min = 999999f;
+            float lastDist = 10000;
             Passage closest = null;
 
             for (int j = 0; j < passages.Count; j++) 
             {
-                float d = Vector3.Distance(passages[j].end, nodes[ia]);
-                if (d < attractionRange && d < min) 
+                float distance = Vector3.Distance(passages[j].end, nodes[i]);
+                if (distance < attractionRange && distance < lastDist) 
                 {
-                    min = d;
                     closest = passages[j];
+                    lastDist = distance;
                 }
             }
 
             if (closest != null)
             {
-                closest.attractors.Add(nodes[ia]);
-                activeNodes.Add(ia);
+                closest.attractors.Add(nodes[i]);
+                activeNodes.Add(i);
             }
         }
 
-        // if nodes are active
+        // if there are nodes in attraction range
         if (activeNodes.Count != 0)
         {
             extremities.Clear();
-            List<Passage> newBranches = new List<Passage>();
+            List<Passage> newPassages = new List<Passage>();
 
             for (int i = 0; i < passages.Count; i++)
             {
@@ -157,32 +150,33 @@ public class Generator : MonoBehaviour
                     dir.Normalize();
                     Passage passage = new Passage(passages[i].end, passages[i].end + dir * passageLength, dir, passages[i]);
                     passages[i].children.Add(passage);
-                    newBranches.Add(passage);
+                    newPassages.Add(passage);
                     extremities.Add(passage);
                 } 
                 else if (passages[i].children.Count == 0) extremities.Add(passages[i]);
             }
 
-            passages.AddRange(newBranches);
-        } 
-        else // if nodes arent active
+            passages.AddRange(newPassages);
+        }
+
+        // if no active nodes
+        if (activeNodes.Count == 0)
         {
             for (int i = 0; i < extremities.Count; i++)
             {
-                Passage extremity = extremities[i];
-                bool extremityInRadius = Vector3.Distance(extremity.start, Vector3.zero) < caveSize / 2;
+                Passage current = extremities[i];
+                bool extremityInRadius = Vector3.Distance(current.start, Vector3.zero) < caveSize / 2;
                 bool beginning = passages.Count < 20;
 
                 if (extremityInRadius || beginning)
                 {
-                    Vector3 start = extremity.end;
-                    Vector3 dir = extremity.direction + RandomGrowthVector();
-                    Vector3 end = extremity.end + dir * passageLength;
-                    Passage passage = new Passage(start, end, dir, extremity);
-                    
-                    extremity.children.Add(passage);
-                    passages.Add(passage);
-                    extremities[i] = passage;
+                    Vector3 raw = current.direction + RandomGrowthVector();
+                    Vector3 dir = raw.normalized;
+                    Passage next = new Passage(current.end, current.end + dir * passageLength, dir, current);
+                    current.children.Add(next);
+                    passages.Add(next);
+                    extremities.Remove(current);
+                    extremities.Add(next);
                 }
             }
         }
@@ -203,22 +197,15 @@ public class Generator : MonoBehaviour
 
             for (int j = 0; j < subdivisions; j++)
             {
-                float alpha = (float)j / subdivisions * Mathf.PI * 2f;
-                Quaternion orientationRing = Quaternion.FromToRotation(Vector3.up, passage.direction);
-                Vector3 aroundRing = new Vector3(Mathf.Cos(alpha) * passageWidth, 0, Mathf.Sin(alpha) * passageWidth);
-                Vector3 offset = orientationRing * aroundRing;
+                int half = (passages.Count + 1) * subdivisions;
+                float part = (float)j / subdivisions * Mathf.PI * 2f;
+                Quaternion ringRotation = Quaternion.FromToRotation(Vector3.up, passage.direction);
+                Vector3 vertexRotation = new Vector3(Mathf.Cos(part) * passageWidth, 0, Mathf.Sin(part) * passageWidth);
+                Vector3 offset = ringRotation * vertexRotation;
                 Vector3 extra = passage.direction * passageWidth / 4;
                 
-                Vector3 firstRingVertex = passage.end + extra + offset;
-                Vector3 secondRingVertex = passage.start - extra + offset;
-
-                // set vertices
-                int half = (passages.Count + 1) * subdivisions;
-                vertices[id + j] = firstRingVertex - transform.position;
-                vertices[id + j + half] = secondRingVertex - transform.position;
-
-                // first passage vertices
-                if (passage.parent == null) vertices[passages.Count * subdivisions + j] = passage.start + new Vector3(Mathf.Cos(alpha) * passageWidth, 0, Mathf.Sin(alpha) * passageWidth) - transform.position;
+                vertices[id + j] = passage.start - extra + offset;
+                vertices[id + j + half] = passage.end + extra + offset;
             }
         }
 
@@ -227,35 +214,23 @@ public class Generator : MonoBehaviour
         {
             Passage passage = passages[i];
             int half = (passages.Count + 1) * subdivisions;
-            int triangleID = i * subdivisions * 2 * 3;
 
-            int startVertexID = passage.verticesid + half;
-            int endVertexID = passage.verticesid;
+            int triangle = i * subdivisions * 6;
+            int startVertex = passage.verticesid;
+            int endVertex = passage.verticesid + half;
 
+            // setup all triangles
             for (int j = 0; j < subdivisions; j++)
             {
-                // start of triangles
-                triangles[triangleID + j * 6] = startVertexID + j;
-                triangles[triangleID + j * 6 + 1] = endVertexID + j;
-
-                if (j == subdivisions - 1) // last triangles
-                {
-                    triangles[triangleID + j * 6 + 2] = endVertexID;
-                    triangles[triangleID + j * 6 + 3] = startVertexID + j;
-                    triangles[triangleID + j * 6 + 4] = endVertexID;
-                    triangles[triangleID + j * 6 + 5] = startVertexID;
-                }
-                else // other triangles
-                {
-                    triangles[triangleID + j * 6 + 2] = endVertexID + j + 1;
-                    triangles[triangleID + j * 6 + 3] = startVertexID + j;
-                    triangles[triangleID + j * 6 + 4] = endVertexID + j + 1;
-                    triangles[triangleID + j * 6 + 5] = startVertexID + j + 1;
-                }
+                int offset = j == subdivisions - 1 ? 0 : j + 1;
+                triangles[triangle + j * 6] = startVertex + j;
+                triangles[triangle + j * 6 + 1] = endVertex + j;
+                triangles[triangle + j * 6 + 2] = endVertex + offset;
+                triangles[triangle + j * 6 + 3] = startVertex + j;
+                triangles[triangle + j * 6 + 4] = endVertex + offset;
+                triangles[triangle + j * 6 + 5] = startVertex + offset;
             }
         }
-        
-        
 
         mesh.vertices = vertices;
         mesh.triangles = triangles;
@@ -308,7 +283,6 @@ public class Generator : MonoBehaviour
             float alpha = Random.Range(0f, Mathf.PI);
             float theta = Random.Range(0f, Mathf.PI * 2f);
             Vector3 pt = new Vector3(radius * Mathf.Cos(theta) * Mathf.Sin(alpha), radius * Mathf.Sin(theta) * Mathf.Sin(alpha), radius * Mathf.Cos(alpha));
-            pt += transform.position;
             nodes.Add(pt);
         }
     }
