@@ -47,16 +47,8 @@ public class Generator : MonoBehaviour
     private List<Passage> passages = new List<Passage>();
     private List<Passage> extremities = new List<Passage>();
     private bool finished = false;
-
-    private int test = 0;
-
-    void ColorTest()
-    {
-        if (!finished || test >= passages.Count) return;
-        SetPassageLight(true, passages[passages.Count - 1 - test]);
-        test++;
-    }
-
+    private int indexToLight = 0;
+    
     private void Start()
     {
         // create nodes
@@ -67,8 +59,15 @@ public class Generator : MonoBehaviour
         passages.Add(firstPassage);
         extremities.Add(firstPassage);
 
-        // test
-        InvokeRepeating("ColorTest", 0.0f, 1f / 200f);
+        // slowly lights up each passage
+        InvokeRepeating("SlowlyLightPassages", 0.0f, 1f / 200f);
+    }
+
+    private void SlowlyLightPassages()
+    {
+        if (!finished || indexToLight > passages.Count - 1) return;
+        SetPassageLight(true, passages[passages.Count - indexToLight - 1]);
+        indexToLight++;
     }
 
     private void Update()
