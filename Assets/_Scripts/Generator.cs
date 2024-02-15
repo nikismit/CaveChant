@@ -269,7 +269,7 @@ public class Generator : MonoBehaviour
     public void SetPassageLight(bool lit, Passage passage)
     {
         passage.lit = lit;
-        Color color = passage.lit ? Color.yellow : Color.black;
+        Color color = passage.lit ? Color.yellow * 2 : Color.black;
         int half = (passages.Count + 1) * subdivisions;
 
         Mesh mesh = gameObject.GetComponent<MeshFilter>().mesh;
@@ -288,7 +288,7 @@ public class Generator : MonoBehaviour
         for (int i = 0; i < passages.Count; i++)
         {
             Passage passage = passages[i];
-            Color color = passage.lit ? Color.yellow : Color.black;
+            Color color = passage.lit ? Color.yellow * 2 : Color.black;
             int half = (passages.Count + 1) * subdivisions;
             for (int j = 0; j < subdivisions; j++)
             {
