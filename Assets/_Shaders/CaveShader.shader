@@ -13,6 +13,8 @@
             #pragma vertex vert
             #pragma fragment frag
 
+            #pragma multi_compile_fog
+
             #include "UnityCG.cginc"
 
             struct appdata
@@ -24,6 +26,7 @@
             struct v2f
             {
                 float4 pos : POSITION;
+                UNITY_FOG_COORDS(1)
                 fixed4 color : COLOR;
             };
 
@@ -32,12 +35,15 @@
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.color = v.color;
+                UNITY_TRANSFER_FOG(o, o.pos);
                 return o;
             }
 
             fixed4 frag (v2f i) : SV_Target
             {
-                return i.color;
+                float4 col = i.color;
+                UNITY_APPLY_FOG(i.fogCoord, col);
+                return col;
             }
 
             ENDCG
