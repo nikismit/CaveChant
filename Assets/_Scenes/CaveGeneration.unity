@@ -244,7 +244,6 @@ MonoBehaviour:
   nodesLeft: 100
   caveSize: 10
   passageLength: 0.1
-  timeBetweenIterations: 0.001
   attractionRange: 1.2
   killRange: 0.4
   randomGrowth: 0.4

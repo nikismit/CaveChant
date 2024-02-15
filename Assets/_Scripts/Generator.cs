@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class Passage
@@ -27,7 +28,7 @@ public class Generator : MonoBehaviour
 {
     [Header("Mesh Generation Settings")]
     public Material caveMaterial;
-    public float passageWidth = 0.05f;
+    public float passageWidth = 0.01f;
     public int subdivisions = 6;
 
     [Header("Space Colonization Settings")]
@@ -35,25 +36,24 @@ public class Generator : MonoBehaviour
     public int nodesAmount = 1000;
     public int nodesLeft = 100;
     public float caveSize = 10;
-    public float passageLength = 0.4f;
-    public float timeBetweenIterations = 0.1f;
-    public float attractionRange = 1.6f;
-    public float killRange = 1;
-    public float randomGrowth = 0.1f;
+    public float passageLength = 0.1f;
+    public float attractionRange = 1.2f;
+    public float killRange = 0.4f;
+    public float randomGrowth = 0.4f;
 
     private List<Vector3> nodes = new List<Vector3>();
     private List<int> activeNodes = new List<int>();
     private Passage firstPassage;
     private List<Passage> passages = new List<Passage>();
     private List<Passage> extremities = new List<Passage>();
-    private float timeSinceLastIteration = 0f;
+    private bool finished = false;
 
     private int test = 0;
 
     void ColorTest()
     {
-        if (gameObject.GetComponent<MeshFilter>() == null || test >= passages.Count) return;
-        UpdatePassageColor(true, passages[passages.Count - 1 - test]);
+        if (!finished || test >= passages.Count) return;
+        SetPassageLight(true, passages[passages.Count - 1 - test]);
         test++;
     }
 
@@ -62,26 +62,131 @@ public class Generator : MonoBehaviour
         // create nodes
         GenerateNodes(nodesAmount, caveSize / 2);
 
-        // create cave entrance passage
+        // create entrance
         firstPassage = new Passage(entrance, entrance + new Vector3(0, passageLength, 0), new Vector3(0, 1, 0));
         passages.Add(firstPassage);
         extremities.Add(firstPassage);
 
-        //test
-        InvokeRepeating("ColorTest", 0.0f, 0.004f);
+        // test
+        InvokeRepeating("ColorTest", 0.0f, 1f / 200f);
     }
 
-    public void UpdatePassageColor(bool lit, Passage passage)
+    private void Update()
     {
-        passage.lit = lit;
-        Mesh mesh = gameObject.GetComponent<MeshFilter>().mesh;
-        Color[] colors = mesh.colors;
-        int half = (passages.Count + 1) * subdivisions;
+        // iterate
+        IterateSpaceColonization();
 
-        for (int i = passage.verticesid; i < passage.verticesid + subdivisions; i++) colors[i] = passage.lit ? Color.yellow : Color.black;
-        for (int i = passage.verticesid; i < passage.verticesid + subdivisions; i++) colors[i + half] = passage.lit ? Color.yellow : Color.black;
+        // run once when done iterating
+        if (!finished && nodes.Count == 0)
+        {
+            // generate mesh
+            GenerateMesh();
 
-        mesh.colors = colors;
+            // assign id's
+            for (int i = 0; i < passages.Count; i++) passages[i].id = i;
+
+            // set finished to true
+            finished = true;
+        }
+    }
+
+    private void IterateSpaceColonization()
+    {
+        // cleanup leftover nodes
+        if (nodes.Count > 0 && nodes.Count <= nodesLeft)
+        {
+            nodes.Clear();
+            nodesAmount = nodes.Count;
+        }
+
+        // return if there are no nodes
+        if (nodes.Count == 0) return;
+
+        // cleanup
+        for (int i = nodes.Count - 1; i >= 0; i--)
+        {
+            for (int j = 0; j < passages.Count; j++)
+            {
+                if (Vector3.Distance(passages[j].end, nodes[i]) < killRange)
+                {
+                    nodes.Remove(nodes[i]);
+                    nodesAmount--;
+                    break;
+                }
+            }
+        }
+        activeNodes.Clear();
+        for (int i = 0; i < passages.Count; i++) passages[i].attractors.Clear();
+
+        // calculate active nodes
+        for (int ia = 0; ia < nodes.Count; ia++)
+        {
+            float min = 999999f;
+            Passage closest = null;
+
+            for (int j = 0; j < passages.Count; j++) 
+            {
+                float d = Vector3.Distance(passages[j].end, nodes[ia]);
+                if (d < attractionRange && d < min) 
+                {
+                    min = d;
+                    closest = passages[j];
+                }
+            }
+
+            if (closest != null)
+            {
+                closest.attractors.Add(nodes[ia]);
+                activeNodes.Add(ia);
+            }
+        }
+
+        // if nodes are active
+        if (activeNodes.Count != 0)
+        {
+            extremities.Clear();
+            List<Passage> newBranches = new List<Passage>();
+
+            for (int i = 0; i < passages.Count; i++)
+            {
+                if (passages[i].attractors.Count > 0)
+                {
+                    Vector3 dir = new Vector3(0, 0, 0);
+                    for (int j = 0; j < passages[i].attractors.Count; j++) dir += (passages[i].attractors[j] - passages[i].end).normalized;
+                    dir /= passages[i].attractors.Count;
+                    dir += RandomGrowthVector();
+                    dir.Normalize();
+                    Passage passage = new Passage(passages[i].end, passages[i].end + dir * passageLength, dir, passages[i]);
+                    passages[i].children.Add(passage);
+                    newBranches.Add(passage);
+                    extremities.Add(passage);
+                } 
+                else if (passages[i].children.Count == 0) extremities.Add(passages[i]);
+            }
+
+            passages.AddRange(newBranches);
+        } 
+        else // if nodes arent active
+        {
+            for (int i = 0; i < extremities.Count; i++)
+            {
+                Passage extremity = extremities[i];
+                bool extremityInRadius = Vector3.Distance(extremity.start, Vector3.zero) < caveSize / 2;
+                bool beginning = passages.Count < 20;
+
+                if (extremityInRadius || beginning)
+                {
+                    Vector3 start = extremity.end;
+                    Vector3 dir = extremity.direction + RandomGrowthVector();
+                    Vector3 end = extremity.end + dir * passageLength;
+                    Passage passage = new Passage(start, end, dir, extremity);
+                    
+                    extremity.children.Add(passage);
+                    passages.Add(passage);
+                    extremities[i] = passage;
+                }
+            }
+        }
     }
 
     private void GenerateMesh()
@@ -150,141 +255,48 @@ public class Generator : MonoBehaviour
                 }
             }
         }
-
-        // Initialize colors array
-        Color[] colors = new Color[vertices.Length];
-        for (int i = 0; i < passages.Count; i++)
-        {
-            Passage passage = passages[i];
-            Color color = passage.lit ? Color.yellow : Color.black;
-            int half = (passages.Count + 1) * subdivisions;
-
-            for (int j = 0; j < subdivisions; j++) colors[passage.verticesid + j] = color;
-            for (int j = 0; j < subdivisions; j++) colors[passage.verticesid + half + j] = color;
-        }
+        
+        
 
         mesh.vertices = vertices;
         mesh.triangles = triangles;
-        mesh.colors = colors;
+        mesh.colors = InitialVertexColors(vertices.Length);
         mesh.RecalculateNormals();
         gameObject.AddComponent<MeshFilter>().mesh = mesh;
         gameObject.AddComponent<MeshRenderer>().material = caveMaterial;
     }
 
-    private void Update()
+    public void SetPassageLight(bool lit, Passage passage)
     {
-        // run once at the end
-        if (nodes.Count == 0 && gameObject.GetComponent<MeshRenderer>() == null)
+        passage.lit = lit;
+        Color color = passage.lit ? Color.yellow : Color.black;
+        int half = (passages.Count + 1) * subdivisions;
+
+        Mesh mesh = gameObject.GetComponent<MeshFilter>().mesh;
+        Color[] colors = mesh.colors;
+        for (int i = 0; i < subdivisions; i++)
         {
-            GenerateMesh();
-            for (int i = 0; i < passages.Count; i++) passages[i].id = i;
+            colors[passage.verticesid + i] = color;
+            colors[passage.verticesid + i + half] = color;
         }
-        
-        // cleanup leftover nodes
-        if (nodes.Count <= nodesLeft) nodes.Clear();
-
-        timeSinceLastIteration += Time.deltaTime;
-
-        if (timeSinceLastIteration > timeBetweenIterations)
-        {
-            timeSinceLastIteration = 0f;
-
-            for (int i = nodes.Count - 1; i >= 0; i--)
-            {
-                for (int j = 0; j < passages.Count; j++) 
-                {
-                    if (Vector3.Distance(passages[j].end, nodes[i]) < killRange) 
-                    {
-                        nodes.Remove(nodes[i]);
-                        nodesAmount--;
-                        break;
-                    }
-                }
-            }
-
-            if (nodes.Count > 0)
-            {
-                activeNodes.Clear();
-
-                for (int i = 0; i < passages.Count; i++) passages[i].attractors.Clear();
-
-                for (int ia = 0; ia < nodes.Count; ia++)
-                {
-                    float min = 999999f;
-                    Passage closest = null;
-
-                    for (int j = 0; j < passages.Count; j++) 
-                    {
-                        float d = Vector3.Distance(passages[j].end, nodes[ia]);
-                        if (d < attractionRange && d < min) 
-                        {
-                            min = d;
-                            closest = passages[j];
-                        }
-                    }
-
-                    if (closest != null)
-                    {
-                        closest.attractors.Add(nodes[ia]);
-                        activeNodes.Add(ia);
-                    }
-                }
-
-                if (activeNodes.Count != 0) 
-                {
-                    extremities.Clear();
-                    List<Passage> newBranches = new List<Passage>();
-
-                    for (int i = 0; i < passages.Count; i++)
-                    {
-                        if (passages[i].attractors.Count > 0)
-                        {
-                            Vector3 dir = new Vector3(0, 0, 0);
-                            for (int j = 0; j < passages[i].attractors.Count; j++) dir += (passages[i].attractors[j] - passages[i].end).normalized;
-                            dir /= passages[i].attractors.Count;
-                            dir += RandomGrowthVector();
-                            dir.Normalize();
-                            Passage passage = new Passage(passages[i].end, passages[i].end + dir * passageLength, dir, passages[i]);
-                            passages[i].children.Add(passage);
-                            newBranches.Add(passage);
-                            extremities.Add(passage);
-                        } 
-                        else if (passages[i].children.Count == 0) extremities.Add(passages[i]);
-                    }
-
-                    passages.AddRange(newBranches);
-                } 
-                else
-                {
-                    for (int i = 0; i < extremities.Count; i++)
-                    {
-                        Passage extremity = extremities[i];
-                        bool extremityInRadius = Vector3.Distance(extremity.start, Vector3.zero) < caveSize / 2;
-                        bool beginning = passages.Count < 20;
-
-                        if (extremityInRadius || beginning)
-                        {
-                            Vector3 start = extremity.end;
-                            Vector3 dir = extremity.direction + RandomGrowthVector();
-                            Vector3 end = extremity.end + dir * passageLength;
-                            Passage passage = new Passage(start, end, dir, extremity);
-                            
-                            extremity.children.Add(passage);
-                            passages.Add(passage);
-                            extremities[i] = passage;
-                        }
-                    }
-                }
-            }
-        }
+        mesh.colors = colors;
     }
 
-    private Vector3 RandomGrowthVector()
+    private Color[] InitialVertexColors(int amount)
     {
-        float alpha = Random.Range(0f, Mathf.PI);
-        float theta = Random.Range(0f, Mathf.PI * 2f);
-        Vector3 pt = new Vector3(Mathf.Cos(theta) * Mathf.Sin(alpha), Mathf.Sin(theta) * Mathf.Sin(alpha), Mathf.Cos(alpha));
-        return pt * randomGrowth;
+        Color[] colors = new Color[amount];
+        for (int i = 0; i < passages.Count; i++)
+        {
+            Passage passage = passages[i];
+            Color color = passage.lit ? Color.yellow : Color.black;
+            int half = (passages.Count + 1) * subdivisions;
+            for (int j = 0; j < subdivisions; j++)
+            {
+                colors[passage.verticesid + j] = color;
+                colors[passage.verticesid + j + half] = color;
+            }
+        }
+        return colors;
     }
 
     private void GenerateNodes(int n, float r)
@@ -302,6 +314,14 @@ public class Generator : MonoBehaviour
         }
     }
 
+    private Vector3 RandomGrowthVector()
+    {
+        float alpha = Random.Range(0f, Mathf.PI);
+        float theta = Random.Range(0f, Mathf.PI * 2f);
+        Vector3 pt = new Vector3(Mathf.Cos(theta) * Mathf.Sin(alpha), Mathf.Sin(theta) * Mathf.Sin(alpha), Mathf.Cos(alpha));
+        return pt * randomGrowth;
+    }
+
     static bool CheckAngleDifference(Vector3 vector1, Vector3 vector2, float thresholdDegrees)
     {
         vector1 = Vector3.Normalize(vector1);
@@ -310,31 +330,5 @@ public class Generator : MonoBehaviour
         float angle = Mathf.Acos(dotProduct);
         float angleDegrees = angle * Mathf.Rad2Deg;
         return angleDegrees > thresholdDegrees;
-    }
-
-    private void OnDrawGizmos() 
-    {
-        for (int i = 0; i < nodes.Count; i++)
-        {
-            var node = nodes[i];
-            Gizmos.color = Color.white;
-            Gizmos.DrawSphere(new Vector3(node.x, node.y, node.z), 0.05f);
-        }
-        
-        for (int i = 0; i < passages.Count; i++)
-        {
-            Passage passage = passages[i];
-
-            if (extremities.Contains(passage) && nodes.Count > nodesLeft) // extremities during generation
-            {
-                Gizmos.color = Color.green;
-                Gizmos.DrawLine(passage.start, passage.end);
-            }
-            else // other passages
-            {
-                Gizmos.color = Color.white;
-                Gizmos.DrawLine(passage.start, passage.end);
-            }
-        }
     }
 }
