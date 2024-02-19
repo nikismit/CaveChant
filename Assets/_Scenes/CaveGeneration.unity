@@ -353,9 +353,10 @@ MonoBehaviour:
   nodesLeft: 100
   caveSize: 10
   passageLength: 0.1
-  attractionRange: 1.2
+  attractionRange: 1.4
   killRange: 0.4
-  randomGrowth: 0.4
+  randomGrowth: 0.3
+  surfaceHeight: 3
 --- !u!4 &1366762762
 Transform:
   m_ObjectHideFlags: 0

@@ -39,6 +39,7 @@ public class Generator : MonoBehaviour
     public float attractionRange = 1.2f;
     public float killRange = 0.4f;
     public float randomGrowth = 0.4f;
+    public float surfaceHeight = 2;
 
     private List<Vector3> nodes = new List<Vector3>();
     private List<int> activeNodes = new List<int>();
@@ -283,7 +284,7 @@ public class Generator : MonoBehaviour
             float alpha = Random.Range(0f, Mathf.PI);
             float theta = Random.Range(0f, Mathf.PI * 2f);
             Vector3 pt = new Vector3(radius * Mathf.Cos(theta) * Mathf.Sin(alpha), radius * Mathf.Sin(theta) * Mathf.Sin(alpha), radius * Mathf.Cos(alpha));
-            nodes.Add(pt);
+            if (pt.y <= surfaceHeight) nodes.Add(pt);
         }
     }
 
