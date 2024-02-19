@@ -223,7 +223,7 @@ Camera:
     height: 1
   near clip plane: 0.3
   far clip plane: 1000
-  field of view: 70
+  field of view: 80
   orthographic: 0
   orthographic size: 5
   m_Depth: -1
@@ -249,7 +249,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1336003491}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -10}
+  m_LocalPosition: {x: 0, y: 0, z: -11}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -353,10 +353,10 @@ MonoBehaviour:
   nodesLeft: 100
   caveSize: 10
   passageLength: 0.1
-  attractionRange: 1.4
+  attractionRange: 1.2
   killRange: 0.4
-  randomGrowth: 0.3
-  surfaceHeight: 3
+  randomGrowth: 0.4
+  surfaceHeight: 2
 --- !u!4 &1366762762
 Transform:
   m_ObjectHideFlags: 0
