@@ -43,9 +43,9 @@ public class Generator : MonoBehaviour
     public float surfaceHeight = 2;
 
     [Header("Camera & Player Settings")]
-    [Range(0.1f, 10)] public float cameraOffset = 2;
-    [Range(0.001f, 0.1f)] public float cameraSpeed = 0.1f;
-    [Range(0.1f, 1)] public float walkInterval = 0.2f;
+    [Range(1, 10)] public float cameraOffset = 3;
+    [Range(0.4f, 2)] public float cameraSpeed = 1;
+    [Range(0.1f, 1)] public float walkInterval = 0.5f;
     public int othersAmount = 12;
 
     private List<Vector3> nodes = new List<Vector3>();
@@ -71,10 +71,11 @@ public class Generator : MonoBehaviour
         extremities.Add(firstPassage);
 
         // slowly walk players
-        InvokeRepeating("Walk", 0.0f, walkInterval);
+        InvokeRepeating("WalkPlayer", 0.0f, walkInterval);
+        InvokeRepeating("WalkOthers", 0.0f, walkInterval * 2);
     }
 
-    private void Walk()
+    private void WalkPlayer()
     {
         if (!finished) return;
 
@@ -85,6 +86,13 @@ public class Generator : MonoBehaviour
             SetPassageLight(true, currentPlayer);
             playerPassage = currentPlayer;
         }
+
+        step++;
+    }
+
+    private void WalkOthers()
+    {
+        if (!finished) return;
 
         // others
         for (int i = 0; i < othersPassages.Count; i++)
@@ -97,8 +105,6 @@ public class Generator : MonoBehaviour
                 othersPassages[i] = next;
             }
         }
-
-        step++;
     }
 
     Passage GetNewHighest()
@@ -130,8 +136,10 @@ public class Generator : MonoBehaviour
         if (playerEntrance != null && playerPassage != null)
         {
             var current = Camera.main.transform.position;
-            var next = playerPassage.end + Vector3.back * cameraOffset;
-            Camera.main.transform.position = Vector3.Lerp(current, next, cameraSpeed);
+            var next = playerPassage.end + -Camera.main.transform.forward * cameraOffset;
+
+            Camera.main.transform.position = Vector3.Lerp(Camera.main.transform.position, next, cameraSpeed * Time.deltaTime);
+            Camera.main.transform.RotateAround(playerPassage.end, Vector3.up, 16 * Time.deltaTime);
         }
 
         // iterate
@@ -321,7 +329,7 @@ public class Generator : MonoBehaviour
     public void SetPassageLight(bool lit, Passage passage)
     {
         passage.lit = lit;
-        Color color = passage.lit ? Color.yellow * 2 : Color.grey;
+        Color color = passage.lit ? Color.yellow * 2 : new Color(0.2f, 0.2f, 0.2f, 1);
         int half = (passages.Count + 1) * subdivisions;
 
         Mesh mesh = gameObject.GetComponent<MeshFilter>().mesh;
@@ -340,7 +348,7 @@ public class Generator : MonoBehaviour
         for (int i = 0; i < passages.Count; i++)
         {
             Passage passage = passages[i];
-            Color color = passage.lit ? Color.yellow * 2 : Color.grey;
+            Color color = passage.lit ? Color.yellow * 2 : new Color(0.2f, 0.2f, 0.2f, 1);
             int half = (passages.Count + 1) * subdivisions;
             for (int j = 0; j < subdivisions; j++)
             {
