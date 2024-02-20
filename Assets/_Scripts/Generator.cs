@@ -48,6 +48,8 @@ public class Generator : MonoBehaviour
     private List<Passage> extremities = new List<Passage>();
     private bool finished = false;
     private int indexToLight = 0;
+
+    private Passage playerEntrance;
     
     private void Start()
     {
@@ -60,14 +62,27 @@ public class Generator : MonoBehaviour
         extremities.Add(firstPassage);
 
         // slowly lights up each passage
-        InvokeRepeating("SlowlyLightPassages", 0.0f, 1f / 200f);
+        InvokeRepeating("SlowlyLightPassages", 0.0f, 0.1f);
     }
 
     private void SlowlyLightPassages()
     {
         if (!finished || indexToLight > passages.Count - 1) return;
-        SetPassageLight(true, passages[passages.Count - indexToLight - 1]);
+        var current = GetParentByIndex(playerEntrance, indexToLight);
+        if (current != null) SetPassageLight(true, current);
         indexToLight++;
+    }
+
+    Passage GetParentByIndex(Passage passage, int index)
+    {
+        if (passage.parent == null) return null;
+
+        Passage parent = passage;
+        for (int i = 0; i < index + 1; i++) 
+            if (parent.parent != null) parent = parent.parent;
+            else return null;
+
+        return parent;
     }
 
     private void Update()
@@ -86,7 +101,18 @@ public class Generator : MonoBehaviour
 
             // set finished to true
             finished = true;
+
+            // set player entrance
+            playerEntrance = GetHighest();
+            SetPassageLight(true, playerEntrance);
         }
+    }
+
+    Passage GetHighest()
+    {
+        Passage highest = null;
+        foreach (var ex in extremities) if (highest == null || ex.end.y > highest.end.y) highest = ex;
+        return highest;
     }
 
     private void IterateSpaceColonization()
