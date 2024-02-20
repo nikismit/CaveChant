@@ -14,7 +14,7 @@ OcclusionCullingSettings:
 RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 9
-  m_Fog: 1
+  m_Fog: 0
   m_FogColor: {r: 0, g: 0, b: 0, a: 0}
   m_FogMode: 1
   m_FogDensity: 0.01
@@ -356,7 +356,7 @@ MonoBehaviour:
   killRange: 0.4
   randomGrowth: 0.4
   surfaceHeight: 1
-  cameraOffset: 4
+  cameraOffset: 3
   cameraSpeed: 0.004
   playerSpeed: 0.1
 --- !u!4 &1366762762

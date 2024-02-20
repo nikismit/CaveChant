@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class Passage
@@ -44,7 +45,8 @@ public class Generator : MonoBehaviour
     [Header("Camera & Player Settings")]
     [Range(0.1f, 10)] public float cameraOffset = 2;
     [Range(0.001f, 0.1f)] public float cameraSpeed = 0.1f;
-    [Range(0.1f, 1)] public float playerSpeed = 0.2f;
+    [Range(0.1f, 1)] public float walkInterval = 0.2f;
+    public int othersAmount = 12;
 
     private List<Vector3> nodes = new List<Vector3>();
     private List<int> activeNodes = new List<int>();
@@ -52,9 +54,11 @@ public class Generator : MonoBehaviour
     private List<Passage> passages = new List<Passage>();
     private List<Passage> extremities = new List<Passage>();
     private bool finished = false;
-    private int indexToLight = 0;
+    private int step = 0;
     private Passage playerEntrance;
     private Passage playerPassage;
+    private List<Passage> othersEntrances = new List<Passage>();
+    private List<Passage> othersPassages = new List<Passage>();
     
     private void Start()
     {
@@ -66,20 +70,46 @@ public class Generator : MonoBehaviour
         passages.Add(firstPassage);
         extremities.Add(firstPassage);
 
-        // slowly lights up each passage
-        InvokeRepeating("TestPlayer", 0.0f, playerSpeed);
+        // slowly walk players
+        InvokeRepeating("Walk", 0.0f, walkInterval);
     }
 
-    private void TestPlayer()
+    private void Walk()
     {
-        if (!finished || indexToLight > passages.Count - 1) return;
-        var current = GetParentByIndex(playerEntrance, indexToLight);
-        if (current != null)
+        if (!finished) return;
+
+        // player
+        var currentPlayer = GetParentByIndex(playerEntrance, step);
+        if (currentPlayer != null)
         {
-            SetPassageLight(true, current);
-            playerPassage = current;
+            SetPassageLight(true, currentPlayer);
+            playerPassage = currentPlayer;
         }
-        indexToLight++;
+
+        // others
+        for (int i = 0; i < othersPassages.Count; i++)
+        {
+            if (othersPassages[i].parent != null)
+            {
+                var old = othersPassages[i];
+                var next = old.parent;
+                SetPassageLight(true, next);
+                othersPassages[i] = next;
+            }
+        }
+
+        step++;
+    }
+
+    Passage GetNewHighest()
+    {
+        Passage highest = null;
+        foreach (var ex in extremities)
+        {
+            bool taken = (ex == playerEntrance || othersEntrances.Contains(ex));
+            if (!taken) if (highest == null || ex.end.y > highest.end.y) highest = ex;
+        }
+        return highest;
     }
 
     Passage GetParentByIndex(Passage passage, int index)
@@ -120,16 +150,20 @@ public class Generator : MonoBehaviour
             finished = true;
 
             // set player entrance
-            playerEntrance = GetHighest();
+            playerEntrance = GetNewHighest();
             SetPassageLight(true, playerEntrance);
-        }
-    }
 
-    Passage GetHighest()
-    {
-        Passage highest = null;
-        foreach (var ex in extremities) if (highest == null || ex.end.y > highest.end.y) highest = ex;
-        return highest;
+            // set others entrances
+            for (int i = 0; i < othersAmount; i++)
+            {
+                var otherEntrance = GetNewHighest();
+                othersEntrances.Add(otherEntrance);
+                SetPassageLight(true, otherEntrance);
+            }
+
+            // set others passages
+            foreach (var entrance in othersEntrances) othersPassages.Add(entrance);
+        }
     }
 
     private void IterateSpaceColonization()
