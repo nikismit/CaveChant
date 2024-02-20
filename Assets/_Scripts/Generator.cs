@@ -41,6 +41,11 @@ public class Generator : MonoBehaviour
     public float randomGrowth = 0.4f;
     public float surfaceHeight = 2;
 
+    [Header("Camera & Player Settings")]
+    [Range(0.1f, 10)] public float cameraOffset = 2;
+    [Range(0.001f, 0.1f)] public float cameraSpeed = 0.1f;
+    [Range(0.1f, 1)] public float playerSpeed = 0.2f;
+
     private List<Vector3> nodes = new List<Vector3>();
     private List<int> activeNodes = new List<int>();
     private Passage firstPassage;
@@ -48,8 +53,8 @@ public class Generator : MonoBehaviour
     private List<Passage> extremities = new List<Passage>();
     private bool finished = false;
     private int indexToLight = 0;
-
     private Passage playerEntrance;
+    private Passage playerPassage;
     
     private void Start()
     {
@@ -62,14 +67,18 @@ public class Generator : MonoBehaviour
         extremities.Add(firstPassage);
 
         // slowly lights up each passage
-        InvokeRepeating("SlowlyLightPassages", 0.0f, 0.1f);
+        InvokeRepeating("TestPlayer", 0.0f, playerSpeed);
     }
 
-    private void SlowlyLightPassages()
+    private void TestPlayer()
     {
         if (!finished || indexToLight > passages.Count - 1) return;
         var current = GetParentByIndex(playerEntrance, indexToLight);
-        if (current != null) SetPassageLight(true, current);
+        if (current != null)
+        {
+            SetPassageLight(true, current);
+            playerPassage = current;
+        }
         indexToLight++;
     }
 
@@ -87,6 +96,14 @@ public class Generator : MonoBehaviour
 
     private void Update()
     {
+        // move camera
+        if (playerEntrance != null && playerPassage != null)
+        {
+            var current = Camera.main.transform.position;
+            var next = playerPassage.end + Vector3.back * cameraOffset;
+            Camera.main.transform.position = Vector3.Lerp(current, next, cameraSpeed);
+        }
+
         // iterate
         IterateSpaceColonization();
 
@@ -270,7 +287,7 @@ public class Generator : MonoBehaviour
     public void SetPassageLight(bool lit, Passage passage)
     {
         passage.lit = lit;
-        Color color = passage.lit ? Color.yellow * 2 : Color.black;
+        Color color = passage.lit ? Color.yellow * 2 : Color.grey;
         int half = (passages.Count + 1) * subdivisions;
 
         Mesh mesh = gameObject.GetComponent<MeshFilter>().mesh;
@@ -289,7 +306,7 @@ public class Generator : MonoBehaviour
         for (int i = 0; i < passages.Count; i++)
         {
             Passage passage = passages[i];
-            Color color = passage.lit ? Color.yellow * 2 : Color.black;
+            Color color = passage.lit ? Color.yellow * 2 : Color.grey;
             int half = (passages.Count + 1) * subdivisions;
             for (int j = 0; j < subdivisions; j++)
             {
