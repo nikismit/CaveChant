@@ -1,10 +1,8 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 public class Passage
 {
-    public bool lit;
     public int id;
     public int verticesid;
     public Vector3 start;
@@ -20,27 +18,27 @@ public class Passage
         this.end = end;
         this.direction = direction;
         this.parent = parent;
-        lit = false;
     }
 }
 
 public class Generator : MonoBehaviour
 {
+    [Header("Space Colonization Settings")]
+    public int initialNodeAmount = 1000;
+    public int nodesLeft = 0;
+    public float passageLength = 0.1f;
+    public float attractionRange = 1;
+    public float killRange = 0.6f;
+    public float randomGrowth = 0.2f;
+
+    [Header("Cave Shape Settings")]
+    public Transform ellipsoidTransform;
+    public float surfaceHeight = 2;
+
     [Header("Mesh Generation Settings")]
     public Material caveMaterial;
-    public float passageWidth = 0.01f;
-    public int subdivisions = 6;
-
-    [Header("Space Colonization Settings")]
-    public Vector3 entrance = new Vector3(0, -6, 0);
-    public int initialNodeAmount = 1000;
-    public int nodesLeft = 100;
-    public float caveSize = 10;
-    public float passageLength = 0.1f;
-    public float attractionRange = 1.2f;
-    public float killRange = 0.4f;
-    public float randomGrowth = 0.4f;
-    public float surfaceHeight = 2;
+    [Range(0.005f, 0.1f)] public float passageWidth = 0.01f;
+    [Range(3, 8)] public int subdivisions = 6;
 
     [Header("Camera & Player Settings")]
     [Range(1, 10)] public float cameraOffset = 3;
@@ -59,13 +57,100 @@ public class Generator : MonoBehaviour
     private Passage playerPassage;
     private List<Passage> othersEntrances = new List<Passage>();
     private List<Passage> othersPassages = new List<Passage>();
+
+    private void OnDrawGizmos()
+    {
+        if (ellipsoidTransform == null) return;
+
+        // Visualize the ellipsoid
+        Gizmos.color = Color.blue;
+        Matrix4x4 oldMatrix = Gizmos.matrix;
+        Gizmos.matrix = ellipsoidTransform.localToWorldMatrix;
+        Gizmos.DrawWireSphere(Vector3.zero, 0.5f);
+        Gizmos.matrix = oldMatrix;
+
+        // Visualize the surfaceHeight
+        var size = 2;
+        Gizmos.color = Color.red;
+        Gizmos.DrawLine(new Vector3(-size, surfaceHeight, 0), new Vector3(size, surfaceHeight, 0));
+        Gizmos.DrawLine(new Vector3(0, surfaceHeight, -size), new Vector3(0, surfaceHeight, size));
+        Gizmos.DrawLine(new Vector3(-size, surfaceHeight, 0), new Vector3(0, surfaceHeight, -size));
+        Gizmos.DrawLine(new Vector3(size, surfaceHeight, 0), new Vector3(0, surfaceHeight, size));
+        Gizmos.DrawLine(new Vector3(0, surfaceHeight, -size), new Vector3(size, surfaceHeight, 0));
+        Gizmos.DrawLine(new Vector3(-size, surfaceHeight, 0), new Vector3(0, surfaceHeight, size));
+    }
+
+    void GenerateNodesEllipsoid(int n)
+    {
+        Vector3 localScale = ellipsoidTransform.localScale;
+        Quaternion rotation = ellipsoidTransform.rotation;
+
+        for (int i = 0; i < n; i++)
+        {
+            float alpha = Random.Range(0f, Mathf.PI);
+            float theta = Random.Range(0f, Mathf.PI * 2f);
+            float offset = Mathf.Pow(Random.value, 1f / 3f) / 2;
+
+            // Generate random point inside unit sphere
+            Vector3 unitPoint = new Vector3
+            (
+                Mathf.Cos(theta) * Mathf.Sin(alpha),
+                Mathf.Sin(theta) * Mathf.Sin(alpha),
+                Mathf.Cos(alpha)
+            ) * offset;
+
+            // Apply scaling
+            unitPoint.x *= localScale.x;
+            unitPoint.y *= localScale.y;
+            unitPoint.z *= localScale.z;
+
+            // Rotate the point
+            Vector3 point = rotation * unitPoint;
+
+            // Ensure no nodes spawn above the surfaceHeight
+            if (point.y < surfaceHeight) nodes.Add(point);
+        }
+    }
+
+    bool PointInsideEllipsoid(Vector3 point)
+    {
+        Vector3 localPoint = ellipsoidTransform.InverseTransformPoint(point);
+        float xScaled = localPoint.x / ellipsoidTransform.localScale.x;
+        float yScaled = localPoint.y / ellipsoidTransform.localScale.y;
+        float zScaled = localPoint.z / ellipsoidTransform.localScale.z;
+        return (xScaled * xScaled + yScaled * yScaled + zScaled * zScaled) <= 1.0f;
+    }
+
+    Vector3 EllipsoidBottomPoint()
+    {
+        Vector3 localScale = ellipsoidTransform.localScale;
+        Quaternion rotation = ellipsoidTransform.rotation;
+
+        float alpha = Mathf.PI * 0.5f;
+        float theta = Mathf.PI * 1.5f;
+
+        Vector3 unitPoint = new Vector3
+        (
+            Mathf.Cos(theta) * Mathf.Sin(alpha),
+            Mathf.Sin(theta) * Mathf.Sin(alpha),
+            Mathf.Cos(alpha)
+        ) * 0.5f;
+
+        unitPoint.x *= localScale.x;
+        unitPoint.y *= localScale.y;
+        unitPoint.z *= localScale.z;
+
+        Vector3 pt = rotation * unitPoint;
+        return pt;
+    }
     
     private void Start()
     {
         // create nodes
-        GenerateNodes(initialNodeAmount, caveSize / 2);
+        GenerateNodesEllipsoid(initialNodeAmount);
 
         // create entrance
+        var entrance = EllipsoidBottomPoint() - Vector3.up;
         firstPassage = new Passage(entrance, entrance + new Vector3(0, passageLength, 0), new Vector3(0, 1, 0));
         passages.Add(firstPassage);
         extremities.Add(firstPassage);
@@ -137,7 +222,6 @@ public class Generator : MonoBehaviour
         {
             var current = Camera.main.transform.position;
             var next = playerPassage.end + -Camera.main.transform.forward * cameraOffset;
-
             Camera.main.transform.position = Vector3.Lerp(Camera.main.transform.position, next, cameraSpeed * Time.deltaTime);
             Camera.main.transform.RotateAround(playerPassage.end, Vector3.up, 16 * Time.deltaTime);
         }
@@ -251,7 +335,7 @@ public class Generator : MonoBehaviour
             for (int i = 0; i < extremities.Count; i++)
             {
                 Passage current = extremities[i];
-                bool extremityInRadius = Vector3.Distance(current.start, Vector3.zero) < caveSize / 2;
+                bool extremityInRadius = PointInsideEllipsoid(current.start);
                 bool beginning = passages.Count < 20;
 
                 if (extremityInRadius || beginning)
@@ -328,8 +412,7 @@ public class Generator : MonoBehaviour
 
     public void SetPassageLight(bool lit, Passage passage)
     {
-        passage.lit = lit;
-        Color color = passage.lit ? Color.yellow * 2 : new Color(0.2f, 0.2f, 0.2f, 1);
+        Color color = lit ? Color.yellow * 2 : new Color(0.2f, 0.2f, 0.2f, 1);
         int half = (passages.Count + 1) * subdivisions;
 
         Mesh mesh = gameObject.GetComponent<MeshFilter>().mesh;
@@ -348,7 +431,7 @@ public class Generator : MonoBehaviour
         for (int i = 0; i < passages.Count; i++)
         {
             Passage passage = passages[i];
-            Color color = passage.lit ? Color.yellow * 2 : new Color(0.2f, 0.2f, 0.2f, 1);
+            Color color = new Color(0.2f, 0.2f, 0.2f, 1);
             int half = (passages.Count + 1) * subdivisions;
             for (int j = 0; j < subdivisions; j++)
             {
@@ -359,35 +442,11 @@ public class Generator : MonoBehaviour
         return colors;
     }
 
-    private void GenerateNodes(int n, float r)
-    {
-        for (int i = 0; i < n; i++)
-        {
-            float radius = Random.Range(0f, 1f);
-            radius = Mathf.Pow(Mathf.Sin(radius * Mathf.PI / 2f), 0.8f);
-            radius *= r;
-            float alpha = Random.Range(0f, Mathf.PI);
-            float theta = Random.Range(0f, Mathf.PI * 2f);
-            Vector3 pt = new Vector3(radius * Mathf.Cos(theta) * Mathf.Sin(alpha), radius * Mathf.Sin(theta) * Mathf.Sin(alpha), radius * Mathf.Cos(alpha));
-            if (pt.y <= surfaceHeight) nodes.Add(pt);
-        }
-    }
-
     private Vector3 RandomGrowthVector()
     {
         float alpha = Random.Range(0f, Mathf.PI);
         float theta = Random.Range(0f, Mathf.PI * 2f);
         Vector3 pt = new Vector3(Mathf.Cos(theta) * Mathf.Sin(alpha), Mathf.Sin(theta) * Mathf.Sin(alpha), Mathf.Cos(alpha));
         return pt * randomGrowth;
-    }
-
-    static bool CheckAngleDifference(Vector3 vector1, Vector3 vector2, float thresholdDegrees)
-    {
-        vector1 = Vector3.Normalize(vector1);
-        vector2 = Vector3.Normalize(vector2);
-        float dotProduct = Vector3.Dot(vector1, vector2);
-        float angle = Mathf.Acos(dotProduct);
-        float angleDegrees = angle * Mathf.Rad2Deg;
-        return angleDegrees > thresholdDegrees;
     }
 }
