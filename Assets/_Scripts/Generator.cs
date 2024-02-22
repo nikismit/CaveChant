@@ -60,24 +60,37 @@ public class Generator : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        if (ellipsoidTransform == null) return;
+        // draw passages
+        if (passages.Count > 0 && !finished)
+        {
+            for (int i = 0; i < passages.Count; i++)
+            {
+                bool extremity = extremities.Contains(passages[i]);
+                Gizmos.color = extremity ? Color.green : Color.white;
+                Gizmos.DrawLine(passages[i].start, passages[i].end);
+            }
+        }
 
-        // Visualize the ellipsoid
-        Gizmos.color = Color.blue;
-        Matrix4x4 oldMatrix = Gizmos.matrix;
-        Gizmos.matrix = ellipsoidTransform.localToWorldMatrix;
-        Gizmos.DrawWireSphere(Vector3.zero, 0.5f);
-        Gizmos.matrix = oldMatrix;
+        // draw shape
+        if (ellipsoidTransform != null)
+        {
+            // Visualize the ellipsoid
+            Gizmos.color = Color.blue;
+            Matrix4x4 oldMatrix = Gizmos.matrix;
+            Gizmos.matrix = ellipsoidTransform.localToWorldMatrix;
+            Gizmos.DrawWireSphere(Vector3.zero, 0.5f);
+            Gizmos.matrix = oldMatrix;
 
-        // Visualize the surfaceHeight
-        var size = 2;
-        Gizmos.color = Color.red;
-        Gizmos.DrawLine(new Vector3(-size, surfaceHeight, 0), new Vector3(size, surfaceHeight, 0));
-        Gizmos.DrawLine(new Vector3(0, surfaceHeight, -size), new Vector3(0, surfaceHeight, size));
-        Gizmos.DrawLine(new Vector3(-size, surfaceHeight, 0), new Vector3(0, surfaceHeight, -size));
-        Gizmos.DrawLine(new Vector3(size, surfaceHeight, 0), new Vector3(0, surfaceHeight, size));
-        Gizmos.DrawLine(new Vector3(0, surfaceHeight, -size), new Vector3(size, surfaceHeight, 0));
-        Gizmos.DrawLine(new Vector3(-size, surfaceHeight, 0), new Vector3(0, surfaceHeight, size));
+            // Visualize the surfaceHeight
+            var size = 2;
+            Gizmos.color = Color.red;
+            Gizmos.DrawLine(new Vector3(-size, surfaceHeight, 0), new Vector3(size, surfaceHeight, 0));
+            Gizmos.DrawLine(new Vector3(0, surfaceHeight, -size), new Vector3(0, surfaceHeight, size));
+            Gizmos.DrawLine(new Vector3(-size, surfaceHeight, 0), new Vector3(0, surfaceHeight, -size));
+            Gizmos.DrawLine(new Vector3(size, surfaceHeight, 0), new Vector3(0, surfaceHeight, size));
+            Gizmos.DrawLine(new Vector3(0, surfaceHeight, -size), new Vector3(size, surfaceHeight, 0));
+            Gizmos.DrawLine(new Vector3(-size, surfaceHeight, 0), new Vector3(0, surfaceHeight, size));
+        }
     }
 
     void GenerateNodesEllipsoid(int n)
